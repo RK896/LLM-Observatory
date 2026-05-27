@@ -1,52 +1,50 @@
 # LLM Agent Observatory
 
-A research agent fully instrumented with **Datadog LLM Observability** and **APM**. The agent answers natural language questions by breaking them into sub-questions, searching the web in parallel, and synthesizing a final answer — while emitting traces, spans, and custom metrics at every step.
+A research agent built on GPT-4o-mini and Tavily, fully instrumented with Datadog APM and LLM Observability. Ask it a question, it breaks it into sub-questions, searches the web, and synthesizes a cited answer. Every step emits traces, spans, and custom metrics.
 
 ## Screenshots
 
-**Live performance dashboard** — latency, cost, and token charts pulled from the Datadog Metrics API in real time:
+Live performance dashboard - latency, cost, and token charts pulled from the Datadog Metrics API:
 ![Dashboard](docs/dashboard.png)
 
-**Query results** — sub-questions the agent generated, synthesized answer with inline citations:
+Query results - sub-questions the agent generated and a synthesized answer with inline citations:
 ![Query results](docs/query.png)
 
-**Run telemetry** — per-source list, latency breakdown by step (planner / search / synthesizer), token distribution:
+Run telemetry - source list, latency breakdown by step, token distribution:
 ![Telemetry](docs/telemetry.png)
 
-## Architecture
+## How it works
 
 ```
 User Query
-    │
-    ▼
-┌─────────────────────────────────────────────────┐
-│                  Research Agent                  │
-│                                                  │
-│  ┌──────────┐   ┌──────────┐   ┌─────────────┐ │
-│  │  Planner │──▶│ Searcher │──▶│ Synthesizer │ │
-│  │  (LLM)   │   │ (Tavily) │   │    (LLM)    │ │
-│  └──────────┘   └──────────┘   └─────────────┘ │
-│       │               │               │          │
-│       └───────────────┴───────────────┘          │
-│                       │                          │
-│              Datadog APM Spans                   │
-│              LLM Observability                   │
-│              Custom Metrics (DogStatsD)          │
-└─────────────────────────────────────────────────┘
-                        │
-                        ▼
+    |
+    v
++--------------------------------------------------+
+|                  Research Agent                  |
+|                                                  |
+|  +----------+   +----------+   +-------------+  |
+|  |  Planner |-->| Searcher |-->| Synthesizer |  |
+|  |  (LLM)   |   | (Tavily) |   |    (LLM)    |  |
+|  +----------+   +----------+   +-------------+  |
+|       |               |               |          |
+|       +---------------+---------------+          |
+|                       |                          |
+|              Datadog APM Spans                   |
+|              LLM Observability                   |
+|              Custom Metrics (DogStatsD)          |
++--------------------------------------------------+
+                        |
+                        v
               Datadog Dashboard
 ```
 
-### Agent Steps
+1. **Planner** - GPT-4o-mini breaks the question into 2-3 targeted sub-questions
+2. **Searcher** - Tavily web search per sub-question, returns top results
+3. **Synthesizer** - GPT-4o-mini reads all results and writes a cited answer
 
-1. **Planner** — GPT-4o-mini breaks the user question into 2–3 targeted sub-questions
-2. **Searcher** — Tavily web search per sub-question, returns top results with content
-3. **Synthesizer** — GPT-4o-mini reads all search results and writes a cited final answer
+Each step is a traced span. The full run is one root trace in Datadog APM.
 
-Each step is a traced span. The full run is one root trace visible in Datadog APM.
-
-## Tech Stack
+## Tech stack
 
 | Layer | Tool |
 |-------|------|
@@ -58,9 +56,9 @@ Each step is a traced span. The full run is one root trace visible in Datadog AP
 | Web UI | FastAPI + Jinja2 |
 | Packaging | Docker + docker-compose |
 
-## Datadog Integration
+## Datadog integration
 
-### APM Traces
+### APM traces
 
 | Span | Tags |
 |------|------|
@@ -71,13 +69,9 @@ Each step is a traced span. The full run is one root trace visible in Datadog AP
 
 ### LLM Observability
 
-Every LLM call is captured with:
-- Full input/output messages
-- Token counts (prompt + completion)
-- Model name and provider
-- Error classification on failure
+Every LLM call is captured with full input/output messages, token counts, model name, and error classification on failure.
 
-### Custom Metrics (DogStatsD)
+### Custom metrics (DogStatsD)
 
 | Metric | Type | Description |
 |--------|------|-------------|
@@ -85,17 +79,17 @@ Every LLM call is captured with:
 | `agent.llm.cost_usd` | Gauge | Estimated cost per LLM call |
 | `agent.llm.tokens.prompt` | Count | Prompt tokens per call |
 | `agent.llm.tokens.completion` | Count | Completion tokens per call |
-| `agent.search.result_count` | Gauge | Tavily results returned per search |
+| `agent.search.result_count` | Gauge | Tavily results per search |
 | `agent.run.error` | Count | Failed runs, tagged by error type |
 
-## Project Structure
+## Project structure
 
 ```
 llm-agent-observatory/
 ├── agent/
-│   ├── planner.py          # LLM call: question → sub-questions
-│   ├── searcher.py         # Tavily: sub-question → search results
-│   ├── synthesizer.py      # LLM call: results → final answer
+│   ├── planner.py          # LLM call: question -> sub-questions
+│   ├── searcher.py         # Tavily: sub-question -> search results
+│   ├── synthesizer.py      # LLM call: results -> final answer
 │   └── runner.py           # Orchestrates steps, owns root trace
 ├── observability/
 │   ├── tracing.py          # ddtrace setup and span helpers
@@ -119,60 +113,54 @@ llm-agent-observatory/
 ### Prerequisites
 
 - Docker and docker-compose
-- Datadog account ([free trial](https://www.datadoghq.com/))
+- Datadog account (free trial at datadoghq.com)
 - OpenAI API key
 - Tavily API key
 
-### Quick Start
+### Quick start
 
 ```bash
-# 1. Clone and enter the project
+# Clone the repo
 git clone <repo-url>
 cd llm-agent-observatory
 
-# 2. Copy and fill in environment variables
+# Copy and fill in environment variables
 cp .env.example .env
-# Edit .env with your API keys
 
-# 3. Start everything
+# Start everything
 docker-compose up
 
-# 4. Open the UI
+# Open the UI
 open http://localhost:8000
 ```
 
-### Local Development (without Docker)
+### Without Docker
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
-
-# Set environment variables
 cp .env.example .env
-# Edit .env
-
-# Run the app
 uvicorn api.app:app --reload --port 8000
 ```
 
-### Running Tests
+### Tests
 
 ```bash
 pytest tests/ --cov=agent --cov=observability --cov-report=term-missing
 ```
 
-## Environment Variables
+## Environment variables
 
 | Variable | Description |
 |----------|-------------|
 | `OPENAI_API_KEY` | OpenAI API key |
 | `TAVILY_API_KEY` | Tavily search API key |
 | `DD_API_KEY` | Datadog API key |
-| `DD_SITE` | Datadog site (default: `datadoghq.com`) |
-| `DD_SERVICE` | Service name shown in APM (default: `llm-agent-observatory`) |
+| `DD_APP_KEY` | Datadog application key (for metrics dashboard) |
+| `DD_SITE` | Datadog site (e.g. `us5.datadoghq.com`) |
+| `DD_SERVICE` | Service name in APM (default: `llm-agent-observatory`) |
 | `DD_ENV` | Environment tag (default: `local`) |
 | `DD_VERSION` | Version tag (default: `1.0.0`) |
 
-## Cost Estimate
+## Cost
 
-At GPT-4o-mini pricing ($0.15 / 1M input tokens, $0.60 / 1M output tokens), a typical query costs approximately **$0.001–$0.004** depending on sub-question count and result verbosity.
+At GPT-4o-mini pricing ($0.15/1M input, $0.60/1M output tokens), a typical query costs around $0.001-$0.004.
