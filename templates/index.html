@@ -4,305 +4,661 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM Agent Observatory</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
+    :root {
+      --bg:        #07080b;
+      --bg-1:      #0c0e14;
+      --bg-2:      #10131c;
+      --border:    rgba(255,255,255,0.06);
+      --border-2:  rgba(255,255,255,0.10);
+      --text:      #b8c2d6;
+      --text-dim:  #6b7a96;
+      --bright:    #e8edf8;
+      --amber:     #e8a020;
+      --amber-dim: rgba(232,160,32,0.12);
+      --teal:      #0dd3b0;
+      --violet:    #7c6af5;
+      --red:       #ff4f6b;
+      --green:     #22d68f;
+      --mono:      'JetBrains Mono', monospace;
+      --display:   'Syne', sans-serif;
+      --body:      'DM Sans', sans-serif;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html { scroll-behavior: smooth; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #0f1117;
-      color: #e2e8f0;
+      font-family: var(--body);
+      background: var(--bg);
+      color: var(--text);
       min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 48px 24px 80px;
+      /* subtle grid texture */
+      background-image:
+        linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+      background-size: 40px 40px;
     }
 
-    header { text-align: center; margin-bottom: 40px; }
-    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; color: #f8fafc; }
-    header p { margin-top: 8px; color: #94a3b8; font-size: 0.95rem; }
-
-    .card {
-      background: #1e2330;
-      border: 1px solid #2d3548;
-      border-radius: 12px;
-      padding: 28px;
-      width: 100%;
-      max-width: 800px;
-      margin-bottom: 24px;
-    }
-
-    form { display: flex; gap: 10px; }
-
-    input[type="text"] {
-      flex: 1;
-      padding: 12px 16px;
-      background: #111827;
-      border: 1px solid #374151;
-      border-radius: 8px;
-      color: #f1f5f9;
-      font-size: 0.95rem;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    input[type="text"]:focus { border-color: #6366f1; }
-
-    button {
-      padding: 12px 22px;
-      background: #6366f1;
-      color: #fff;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.95rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-      white-space: nowrap;
-    }
-    button:hover { background: #4f46e5; }
-    button:disabled { background: #374151; cursor: not-allowed; }
-
-    #status { margin-top: 20px; font-size: 0.85rem; color: #64748b; min-height: 20px; }
-    #result { display: none; margin-top: 24px; }
-
-    .section-label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: #64748b;
-      margin-bottom: 10px;
-    }
-
-    .sub-questions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
-    .sub-q {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-size: 0.88rem;
-      color: #94a3b8;
-    }
-
-    .answer-box {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
-      padding: 16px;
-      font-size: 0.93rem;
-      line-height: 1.7;
-      color: #e2e8f0;
-      white-space: pre-wrap;
-      margin-bottom: 24px;
-    }
-
-    .stats-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-bottom: 24px;
-    }
-    .stat-card {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
-      padding: 12px 14px;
-    }
-    .stat-card .stat-value { font-size: 1.3rem; font-weight: 700; color: #a5b4fc; }
-    .stat-card .stat-label { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
-
-    .flame-bar {
-      display: flex;
-      height: 32px;
-      border-radius: 6px;
-      overflow: hidden;
-      gap: 2px;
-      margin-bottom: 10px;
-    }
-    .flame-segment {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: #fff;
-      min-width: 40px;
-      cursor: default;
-    }
-    .seg-planner  { background: #6366f1; }
-    .seg-search   { background: #06b6d4; }
-    .seg-synth    { background: #8b5cf6; }
-
-    .legend { display: flex; gap: 16px; flex-wrap: wrap; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #94a3b8; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
-
-    .token-bar-wrap {
-      display: flex;
-      height: 20px;
-      border-radius: 4px;
-      overflow: hidden;
-      margin-bottom: 8px;
-    }
-    .tok-prompt     { background: #f59e0b; }
-    .tok-completion { background: #10b981; }
-    .token-legend { display: flex; gap: 16px; }
-    .token-legend span { font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 6px; }
-    .tok-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-
-    .divider { border: none; border-top: 1px solid #1f2937; margin: 20px 0; }
-
-    .error-box {
-      background: #1c1011;
-      border: 1px solid #7f1d1d;
-      border-radius: 8px;
-      padding: 16px;
-      color: #fca5a5;
-      font-size: 0.9rem;
-    }
-
-    /* Dashboard */
-    .dashboard-header {
+    /* ── TOP BAR ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
+      padding: 0 32px;
+      height: 52px;
+      background: rgba(7,8,11,0.9);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(12px);
     }
-    .dashboard-header h2 { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
-    .dd-badge {
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-logo {
+      font-family: var(--display);
+      font-size: 0.9rem;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: var(--bright);
+    }
+    .topbar-logo span { color: var(--amber); }
+    .topbar-sep { width: 1px; height: 18px; background: var(--border-2); }
+    .topbar-tag {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 20px; }
+    .status-dot {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 6px var(--green);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    .dot.idle { background: var(--text-dim); box-shadow: none; animation: none; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+    .dd-pill {
+      font-family: var(--mono);
       font-size: 0.72rem;
       padding: 3px 8px;
-      border-radius: 4px;
-      background: #632ca6;
-      color: #e9d5ff;
-      font-weight: 600;
+      background: rgba(99,56,245,0.15);
+      border: 1px solid rgba(124,106,245,0.3);
+      border-radius: 3px;
+      color: #a89cf8;
+      letter-spacing: 0.05em;
     }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 900px; margin: 0 auto; padding: 48px 24px 80px; }
+
+    /* ── SECTION HEADER ── */
+    .section-hd {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .section-hd-line { flex: 1; height: 1px; background: var(--border); }
+    .section-hd-label {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      white-space: nowrap;
+    }
+
+    /* ── QUERY PANEL ── */
+    .query-panel {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .query-panel-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-2);
+    }
+    .query-panel-hd-left {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .query-panel-hd-right { display: flex; gap: 6px; }
+    .win-btn { width: 10px; height: 10px; border-radius: 50%; }
+    .wb-red { background: #ff5f57; }
+    .wb-yellow { background: #ffbd2e; }
+    .wb-green { background: #28c840; }
+
+    #queryForm { display: flex; align-items: center; padding: 0; width: 100%; }
+    .query-prompt {
+      padding: 0 16px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      color: var(--amber);
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .query-input {
+      flex: 1;
+      min-width: 0;
+      padding: 18px 0;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--bright);
+      font-family: var(--mono);
+      font-size: 0.95rem;
+      caret-color: var(--amber);
+    }
+    .query-input::placeholder { color: var(--text-dim); }
+    .query-btn {
+      margin: 10px 12px 10px auto;
+      padding: 8px 18px;
+      background: var(--amber);
+      color: #0a0800;
+      border: none;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .query-btn:hover { opacity: 0.88; }
+    .query-btn:active { transform: scale(0.97); }
+    .query-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .status-bar {
+      padding: 8px 16px;
+      border-top: 1px solid var(--border);
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      min-height: 33px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-bar .blink {
+      display: inline-block;
+      width: 6px; height: 12px;
+      background: var(--amber);
+      animation: blink 1s step-end infinite;
+      vertical-align: middle;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── RESULT ── */
+    #result { display: none; animation: fadeUp 0.3s ease; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Sub-questions */
+    .subq-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 28px; }
+    .subq-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 14px;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--amber);
+      border-radius: 2px;
+    }
+    .subq-idx {
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--amber);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .subq-text { font-size: 0.95rem; color: var(--text); line-height: 1.5; }
+
+    /* Answer */
+    .answer-block {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 20px;
+      font-size: 0.97rem;
+      line-height: 1.8;
+      color: var(--bright);
+      white-space: pre-wrap;
+      margin-bottom: 28px;
+    }
+
+    /* ── METRICS ROW ── */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .metric-cell {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-cell::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: var(--amber);
+      opacity: 0.5;
+    }
+    .metric-val {
+      font-family: var(--mono);
+      font-size: 1.6rem;
+      font-weight: 500;
+      color: var(--bright);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .metric-val .unit {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-left: 2px;
+      font-weight: 300;
+    }
+    .metric-lbl {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    /* ── FLAME BAR ── */
+    .flame-block { margin-bottom: 20px; }
+    .flame-track {
+      display: flex;
+      height: 28px;
+      border-radius: 2px;
+      overflow: hidden;
+      gap: 1px;
+      margin-bottom: 8px;
+      background: var(--bg-2);
+    }
+    .flame-seg {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      min-width: 48px;
+      transition: filter 0.15s;
+      cursor: default;
+    }
+    .flame-seg:hover { filter: brightness(1.15); }
+    .fs-planner { background: #4f46e5; }
+    .fs-search  { background: #0891b2; }
+    .fs-synth   { background: #7c3aed; }
+
+    .flame-legend {
+      display: flex;
+      gap: 20px;
+    }
+    .flame-leg-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+    .leg-swatch {
+      width: 8px; height: 8px;
+      border-radius: 1px;
+      flex-shrink: 0;
+    }
+    .flame-leg-item strong { color: var(--text); font-weight: 500; }
+
+    /* ── TOKEN BAR ── */
+    .tok-block { margin-bottom: 4px; }
+    .tok-track {
+      display: flex;
+      height: 16px;
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 7px;
+    }
+    .tok-p { background: #d97706; }
+    .tok-c { background: #059669; }
+    .tok-legend {
+      display: flex;
+      gap: 20px;
+    }
+    .tok-leg {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+    .tok-leg strong { color: var(--text); font-weight: 500; }
+    .tok-swatch { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
+
+    /* ── DIVIDER ── */
+    .rule {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 24px 0;
+    }
+
+    /* ── DASHBOARD ── */
+    .dash-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .dash-title {
+      font-family: var(--display);
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: var(--bright);
+      letter-spacing: 0.01em;
+    }
+    .dash-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dash-window {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .dash-refresh {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      background: transparent;
+      border: 1px solid var(--border-2);
+      border-radius: 3px;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .dash-refresh:hover { color: var(--amber); border-color: var(--amber); }
 
     .charts-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 16px;
+      gap: 12px;
     }
-    .chart-box {
-      background: #111827;
-      border: 1px solid #1f2937;
-      border-radius: 8px;
+    .chart-cell {
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 4px;
       padding: 16px;
     }
-    .chart-box .chart-title {
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: #64748b;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 12px;
+    .chart-cell-hd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
     }
-    .chart-box canvas { max-height: 160px; }
-
+    .chart-cell-title {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+    .chart-cell-unit {
+      font-family: var(--mono);
+      font-size: 0.58rem;
+      color: var(--text-dim);
+      opacity: 0.6;
+    }
+    .chart-cell canvas { max-height: 130px; }
     .no-data {
+      height: 100px;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100px;
-      color: #374151;
-      font-size: 0.85rem;
+      font-family: var(--mono);
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      letter-spacing: 0.06em;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      padding-bottom: 40px;
+    }
+    footer p {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .error-box {
+      background: rgba(255,79,107,0.08);
+      border: 1px solid rgba(255,79,107,0.3);
+      border-radius: 4px;
+      padding: 14px 16px;
+      color: #ff8fa0;
+      font-family: var(--mono);
+      font-size: 0.8rem;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>LLM Agent Observatory</h1>
-    <p>Research agent with end-to-end Datadog tracing &amp; LLM Observability</p>
+
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">LLM<span>.</span>OBSERVATORY</div>
+      <div class="topbar-sep"></div>
+      <div class="topbar-tag">llm-agent-observatory / local</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-dot">
+        <span class="dot idle" id="statusDot"></span>
+        <span id="statusText">idle</span>
+      </div>
+      <div class="dd-pill">Datadog APM + LLM Obs</div>
+    </div>
   </header>
 
-  <!-- Query card -->
-  <div class="card">
-    <form id="queryForm">
-      <input type="text" id="question" name="question" placeholder="Ask a research question…" autocomplete="off" required />
-      <button type="submit" id="submitBtn">Ask</button>
-    </form>
-    <div id="status"></div>
-    <div id="result"></div>
-  </div>
+  <main class="page">
 
-  <!-- Live dashboard card -->
-  <div class="card" id="dashboardCard">
-    <div class="dashboard-header">
-      <h2>Live Performance Dashboard</h2>
-      <span class="dd-badge">Datadog Metrics</span>
+    <!-- QUERY SECTION -->
+    <div class="section-hd">
+      <span class="section-hd-label">Research Query</span>
+      <div class="section-hd-line"></div>
     </div>
+
+    <div class="query-panel">
+      <div class="query-panel-hd">
+        <span class="query-panel-hd-left">agent.run / gpt-4o-mini + tavily</span>
+        <div class="query-panel-hd-right">
+          <div class="win-btn wb-red"></div>
+          <div class="win-btn wb-yellow"></div>
+          <div class="win-btn wb-green"></div>
+        </div>
+      </div>
+      <form id="queryForm">
+        <div class="query-prompt">&gt;_</div>
+        <input class="query-input" type="text" id="question" name="question"
+               placeholder="ask a research question..." autocomplete="off" required />
+        <button class="query-btn" type="submit" id="submitBtn">run</button>
+      </form>
+      <div class="status-bar" id="statusBar">
+        <span id="statusMsg">ready — traces emitted to datadog apm</span>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div id="result"></div>
+
+    <!-- DASHBOARD -->
+    <div class="section-hd" style="margin-top: 16px;">
+      <span class="section-hd-label">Live Metrics</span>
+      <div class="section-hd-line"></div>
+    </div>
+
+    <div class="dash-header">
+      <span class="dash-title">Performance Dashboard</span>
+      <div class="dash-meta">
+        <span class="dash-window">Last 6h</span>
+        <button class="dash-refresh" id="refreshBtn" onclick="loadDashboard()">↻ refresh</button>
+      </div>
+    </div>
+
     <div class="charts-grid">
-      <div class="chart-box">
-        <div class="chart-title">Latency over time (ms)</div>
-        <div id="latencyWrap"><div class="no-data">Run a query to see data</div></div>
+      <div class="chart-cell">
+        <div class="chart-cell-hd">
+          <span class="chart-cell-title">Run latency</span>
+          <span class="chart-cell-unit">ms</span>
+        </div>
+        <div id="latencyWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
-      <div class="chart-box">
-        <div class="chart-title">Cost over time (USD)</div>
-        <div id="costWrap"><div class="no-data">Run a query to see data</div></div>
+      <div class="chart-cell">
+        <div class="chart-cell-hd">
+          <span class="chart-cell-title">LLM cost</span>
+          <span class="chart-cell-unit">USD / 5 min</span>
+        </div>
+        <div id="costWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
-      <div class="chart-box">
-        <div class="chart-title">Prompt tokens over time</div>
-        <div id="promptWrap"><div class="no-data">Run a query to see data</div></div>
+      <div class="chart-cell">
+        <div class="chart-cell-hd">
+          <span class="chart-cell-title">Prompt tokens</span>
+          <span class="chart-cell-unit">count / 5 min</span>
+        </div>
+        <div id="promptWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
-      <div class="chart-box">
-        <div class="chart-title">Completion tokens over time</div>
-        <div id="completionWrap"><div class="no-data">Run a query to see data</div></div>
+      <div class="chart-cell">
+        <div class="chart-cell-hd">
+          <span class="chart-cell-title">Completion tokens</span>
+          <span class="chart-cell-unit">count / 5 min</span>
+        </div>
+        <div id="completionWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
     </div>
-  </div>
+
+  </main>
+
+  <footer>
+    <p>llm agent observatory · datadog apm + llm observability + dogstatsd</p>
+  </footer>
 
   <script>
-    const CHART_DEFAULTS = {
+    // ── Chart config ──────────────────────────────────────────────
+    Chart.defaults.color = '#6b7a96';
+    Chart.defaults.font.family = "'JetBrains Mono', monospace";
+    Chart.defaults.font.size = 10;
+
+    const CHART_OPT = (color) => ({
       responsive: true,
       maintainAspectRatio: true,
-      plugins: { legend: { display: false } },
+      animation: { duration: 600 },
+      plugins: { legend: { display: false }, tooltip: {
+        backgroundColor: '#10131c',
+        borderColor: 'rgba(255,255,255,0.08)',
+        borderWidth: 1,
+        titleColor: '#9aa3b8',
+        bodyColor: '#e8edf8',
+        padding: 10,
+        cornerRadius: 3,
+      }},
       scales: {
         x: {
-          ticks: { color: '#4b5563', maxTicksLimit: 5, font: { size: 11 } },
-          grid: { color: '#1f2937' },
+          ticks: { maxTicksLimit: 4, color: '#6b7a96', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+          border: { display: false },
         },
         y: {
-          ticks: { color: '#4b5563', font: { size: 11 } },
-          grid: { color: '#1f2937' },
+          ticks: { maxTicksLimit: 4, color: '#6b7a96', font: { size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+          border: { display: false },
           beginAtZero: true,
         },
       },
-    };
+    });
 
-    function toLabels(points) {
-      return points.map(([ts]) => {
-        const d = new Date(ts * 1000);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      });
-    }
-
-    function toValues(points) {
-      return points.map(([, v]) => v);
-    }
-
-    function renderChart(wrapperId, points, color) {
+    function renderChart(wrapperId, points, color, unit) {
       const wrap = document.getElementById(wrapperId);
       if (!points || points.length === 0) {
-        wrap.innerHTML = '<div class="no-data">No data yet — run some queries</div>';
+        wrap.innerHTML = '<div class="no-data">— no data yet —</div>';
         return;
       }
       wrap.innerHTML = '<canvas></canvas>';
+      const labels = points.map(([ts]) => {
+        const d = new Date(ts * 1000);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      });
+      const values = points.map(([, v]) => v);
       new Chart(wrap.querySelector('canvas'), {
         type: 'line',
         data: {
-          labels: toLabels(points),
+          labels,
           datasets: [{
-            data: toValues(points),
+            data: values,
             borderColor: color,
-            backgroundColor: color + '22',
-            borderWidth: 2,
-            pointRadius: 3,
-            tension: 0.3,
+            backgroundColor: color + '18',
+            borderWidth: 1.5,
+            pointRadius: 2,
+            pointHoverRadius: 4,
+            pointBackgroundColor: color,
+            tension: 0.4,
             fill: true,
           }],
         },
-        options: CHART_DEFAULTS,
+        options: CHART_OPT(color),
       });
     }
 
@@ -310,28 +666,59 @@
       try {
         const resp = await fetch('/metrics');
         const data = await resp.json();
-        renderChart('latencyWrap',    data.latency,            '#6366f1');
-        renderChart('costWrap',       data.cost,               '#10b981');
-        renderChart('promptWrap',     data.tokens_prompt,      '#f59e0b');
-        renderChart('completionWrap', data.tokens_completion,  '#8b5cf6');
+        renderChart('latencyWrap',    data.latency,           '#e8a020');
+        renderChart('costWrap',       data.cost,              '#22d68f');
+        renderChart('promptWrap',     data.tokens_prompt,     '#7c6af5');
+        renderChart('completionWrap', data.tokens_completion, '#0dd3b0');
       } catch (e) {
-        console.warn('Could not load dashboard metrics', e);
+        console.warn('Dashboard load failed', e);
       }
     }
 
     loadDashboard();
 
-    // Helpers
+    // ── Helpers ───────────────────────────────────────────────────
     function fmt(ms) {
-      return ms >= 1000 ? (ms / 1000).toFixed(2) + 's' : Math.round(ms) + 'ms';
+      if (ms >= 1000) return (ms / 1000).toFixed(2) + 's';
+      return Math.round(ms) + 'ms';
     }
-    function pct(part, total) { return Math.max(4, Math.round((part / total) * 100)); }
+    function pct(part, total) { return Math.max(5, Math.round((part / total) * 100)); }
 
-    // Query form
+    const dot      = document.getElementById('statusDot');
+    const statusTxt = document.getElementById('statusText');
+    const statusMsg = document.getElementById('statusMsg');
+
+    function setRunning(msg) {
+      dot.classList.remove('idle');
+      statusTxt.textContent = 'running';
+      statusMsg.innerHTML = msg + ' <span class="blink"></span>';
+    }
+    function setIdle(msg) {
+      dot.classList.add('idle');
+      statusTxt.textContent = 'idle';
+      statusMsg.textContent = msg;
+    }
+
+    // ── Form submit ───────────────────────────────────────────────
     const form = document.getElementById('queryForm');
-    const statusEl = document.getElementById('status');
     const resultEl = document.getElementById('result');
     const submitBtn = document.getElementById('submitBtn');
+
+    const steps = [
+      { key: 'plan',       label: 'planner      › decomposing question...' },
+      { key: 'search',     label: 'searcher     › querying tavily...' },
+      { key: 'synthesize', label: 'synthesizer  › composing answer...' },
+    ];
+    let stepIdx = 0;
+    let stepTimer = null;
+
+    function advanceStep() {
+      if (stepIdx < steps.length) {
+        setRunning(steps[stepIdx].label);
+        stepIdx++;
+        stepTimer = setTimeout(advanceStep, 3500);
+      }
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -339,10 +726,11 @@
       if (!question) return;
 
       submitBtn.disabled = true;
-      submitBtn.textContent = 'Thinking…';
-      statusEl.textContent = 'Running agent…';
+      submitBtn.textContent = '...';
       resultEl.style.display = 'none';
       resultEl.innerHTML = '';
+      stepIdx = 0;
+      advanceStep();
 
       const data = new FormData();
       data.append('question', question);
@@ -351,89 +739,128 @@
         const resp = await fetch('/query', { method: 'POST', body: data });
         const json = await resp.json();
 
+        clearTimeout(stepTimer);
+
         if (json.error) {
-          resultEl.innerHTML = `<div class="error-box">${json.error}</div>`;
+          resultEl.innerHTML = `<div class="error-box">error: ${json.error}</div>`;
         } else {
           const s = json.steps;
           const totalMs = s.planner.latency_ms + s.search.latency_ms + s.synthesizer.latency_ms;
-          const plannerPct = pct(s.planner.latency_ms, totalMs);
-          const searchPct  = pct(s.search.latency_ms, totalMs);
-          const synthPct   = pct(s.synthesizer.latency_ms, totalMs);
-          const totalTokens = json.prompt_tokens + json.completion_tokens;
-          const promptPct   = Math.round((json.prompt_tokens / totalTokens) * 100);
+          const pPct = pct(s.planner.latency_ms,     totalMs);
+          const sPct = pct(s.search.latency_ms,       totalMs);
+          const yPct = pct(s.synthesizer.latency_ms,  totalMs);
+          const total = json.prompt_tokens + json.completion_tokens;
+          const ppct  = Math.round((json.prompt_tokens / total) * 100);
 
-          const subQHtml = json.sub_questions.map(q => `<div class="sub-q">${q}</div>`).join('');
+          const subQs = json.sub_questions.map((q, i) => `
+            <div class="subq-item">
+              <span class="subq-idx">Q${i + 1}</span>
+              <span class="subq-text">${q}</span>
+            </div>`).join('');
 
           resultEl.innerHTML = `
-            <div class="section-label">Sub-questions</div>
-            <div class="sub-questions">${subQHtml}</div>
+            <div class="section-hd" style="margin-bottom:14px">
+              <span class="section-hd-label">Sub-questions</span>
+              <div class="section-hd-line"></div>
+            </div>
+            <div class="subq-list">${subQs}</div>
 
-            <div class="section-label">Answer</div>
-            <div class="answer-box">${json.answer}</div>
+            <div class="section-hd" style="margin-bottom:14px">
+              <span class="section-hd-label">Answer</span>
+              <div class="section-hd-line"></div>
+            </div>
+            <div class="answer-block">${json.answer}</div>
 
-            <hr class="divider"/>
+            <div class="section-hd" style="margin-bottom:14px">
+              <span class="section-hd-label">Run telemetry</span>
+              <div class="section-hd-line"></div>
+            </div>
 
-            <div class="section-label">This run</div>
-            <div class="stats-grid">
-              <div class="stat-card">
-                <div class="stat-value">${fmt(json.latency_ms)}</div>
-                <div class="stat-label">Total latency</div>
+            <div class="metrics-row">
+              <div class="metric-cell">
+                <div class="metric-val">${fmt(json.latency_ms)}</div>
+                <div class="metric-lbl">total latency</div>
               </div>
-              <div class="stat-card">
-                <div class="stat-value">$${json.cost_usd}</div>
-                <div class="stat-label">Estimated cost</div>
+              <div class="metric-cell">
+                <div class="metric-val">$${json.cost_usd}</div>
+                <div class="metric-lbl">est. cost</div>
               </div>
-              <div class="stat-card">
-                <div class="stat-value">${json.prompt_tokens + json.completion_tokens}</div>
-                <div class="stat-label">Total tokens</div>
+              <div class="metric-cell">
+                <div class="metric-val">${(json.prompt_tokens + json.completion_tokens).toLocaleString()}<span class="unit">tok</span></div>
+                <div class="metric-lbl">total tokens</div>
               </div>
-              <div class="stat-card">
-                <div class="stat-value">${json.source_count}</div>
-                <div class="stat-label">Sources used</div>
+              <div class="metric-cell">
+                <div class="metric-val">${json.source_count}<span class="unit">src</span></div>
+                <div class="metric-lbl">sources used</div>
               </div>
             </div>
 
-            <div style="margin-bottom:20px">
-              <div class="section-label">Latency breakdown</div>
-              <div class="flame-bar">
-                <div class="flame-segment seg-planner" style="flex:${plannerPct}" title="Planner: ${fmt(s.planner.latency_ms)}">Planner</div>
-                <div class="flame-segment seg-search"  style="flex:${searchPct}"  title="Search: ${fmt(s.search.latency_ms)}">Search</div>
-                <div class="flame-segment seg-synth"   style="flex:${synthPct}"   title="Synthesizer: ${fmt(s.synthesizer.latency_ms)}">Synth</div>
+            <div class="flame-block">
+              <div class="section-hd" style="margin-bottom:10px">
+                <span class="section-hd-label">Latency breakdown</span>
+                <div class="section-hd-line"></div>
               </div>
-              <div class="legend">
-                <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>Planner ${fmt(s.planner.latency_ms)}</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div>Search ${fmt(s.search.latency_ms)}</div>
-                <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Synthesizer ${fmt(s.synthesizer.latency_ms)}</div>
+              <div class="flame-track">
+                <div class="flame-seg fs-planner" style="flex:${pPct}" title="Planner: ${fmt(s.planner.latency_ms)}">plan</div>
+                <div class="flame-seg fs-search"  style="flex:${sPct}" title="Search: ${fmt(s.search.latency_ms)}">search</div>
+                <div class="flame-seg fs-synth"   style="flex:${yPct}" title="Synthesizer: ${fmt(s.synthesizer.latency_ms)}">synth</div>
+              </div>
+              <div class="flame-legend">
+                <div class="flame-leg-item">
+                  <span class="leg-swatch" style="background:#4f46e5"></span>
+                  planner <strong>${fmt(s.planner.latency_ms)}</strong>
+                </div>
+                <div class="flame-leg-item">
+                  <span class="leg-swatch" style="background:#0891b2"></span>
+                  search <strong>${fmt(s.search.latency_ms)}</strong>
+                </div>
+                <div class="flame-leg-item">
+                  <span class="leg-swatch" style="background:#7c3aed"></span>
+                  synthesizer <strong>${fmt(s.synthesizer.latency_ms)}</strong>
+                </div>
               </div>
             </div>
 
-            <div>
-              <div class="section-label">Token usage</div>
-              <div class="token-bar-wrap">
-                <div class="tok-prompt"     style="flex:${promptPct}"></div>
-                <div class="tok-completion" style="flex:${100 - promptPct}"></div>
+            <hr class="rule" />
+
+            <div class="tok-block">
+              <div class="section-hd" style="margin-bottom:10px">
+                <span class="section-hd-label">Token distribution</span>
+                <div class="section-hd-line"></div>
               </div>
-              <div class="token-legend">
-                <span><span class="tok-dot" style="background:#f59e0b"></span>Prompt ${json.prompt_tokens}</span>
-                <span><span class="tok-dot" style="background:#10b981"></span>Completion ${json.completion_tokens}</span>
+              <div class="tok-track">
+                <div class="tok-p" style="flex:${ppct}"></div>
+                <div class="tok-c" style="flex:${100 - ppct}"></div>
+              </div>
+              <div class="tok-legend">
+                <div class="tok-leg">
+                  <span class="tok-swatch" style="background:#d97706"></span>
+                  prompt <strong>${json.prompt_tokens.toLocaleString()}</strong>
+                </div>
+                <div class="tok-leg">
+                  <span class="tok-swatch" style="background:#059669"></span>
+                  completion <strong>${json.completion_tokens.toLocaleString()}</strong>
+                </div>
               </div>
             </div>
+
+            <div style="height:32px"></div>
           `;
+
+          setIdle(`completed in ${fmt(json.latency_ms)} · trace emitted to datadog apm`);
         }
 
         resultEl.style.display = 'block';
-        statusEl.textContent = '';
-
-        // Refresh dashboard after a short delay so new data has time to flow
         setTimeout(loadDashboard, 15000);
 
       } catch (err) {
-        resultEl.innerHTML = `<div class="error-box">Request failed: ${err.message}</div>`;
+        clearTimeout(stepTimer);
+        resultEl.innerHTML = `<div class="error-box">request failed: ${err.message}</div>`;
         resultEl.style.display = 'block';
-        statusEl.textContent = '';
+        setIdle('error — check console');
       } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Ask';
+        submitBtn.textContent = 'run';
       }
     });
   </script>
