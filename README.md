@@ -2,6 +2,17 @@
 
 A research agent fully instrumented with **Datadog LLM Observability** and **APM**. The agent answers natural language questions by breaking them into sub-questions, searching the web in parallel, and synthesizing a final answer — while emitting traces, spans, and custom metrics at every step.
 
+## Screenshots
+
+**Live performance dashboard** — latency, cost, and token charts pulled from the Datadog Metrics API in real time:
+![Dashboard](docs/dashboard.png)
+
+**Query results** — sub-questions the agent generated, synthesized answer with inline citations:
+![Query results](docs/query.png)
+
+**Run telemetry** — per-source list, latency breakdown by step (planner / search / synthesizer), token distribution:
+![Telemetry](docs/telemetry.png)
+
 ## Architecture
 
 ```
