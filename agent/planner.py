@@ -1,6 +1,7 @@
 import json
 import os
 import time
+from dataclasses import dataclass
 
 from ddtrace.llmobs import LLMObs
 from openai import OpenAI
@@ -11,7 +12,6 @@ from observability.tracing import get_tracer
 STEP = "planner"
 MODEL = "gpt-4o-mini"
 
-# GPT-4o-mini pricing (USD per token)
 _COST_PER_PROMPT_TOKEN = 0.15 / 1_000_000
 _COST_PER_COMPLETION_TOKEN = 0.60 / 1_000_000
 
@@ -22,7 +22,16 @@ _SYSTEM_PROMPT = (
 )
 
 
-def plan(question: str) -> list[str]:
+@dataclass(frozen=True)
+class PlanResult:
+    sub_questions: list[str]
+    latency_ms: float
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float
+
+
+def plan(question: str) -> PlanResult:
     """Break a user question into 2–3 targeted sub-questions."""
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     tracer = get_tracer()
@@ -43,23 +52,21 @@ def plan(question: str) -> list[str]:
             )
             latency_ms = (time.monotonic() - start) * 1000
 
-        usage = response.choices[0].message
-        content = response.choices[0].message.content
-        prompt_tokens = response.usage.prompt_tokens
-        completion_tokens = response.usage.completion_tokens
+            content = response.choices[0].message.content
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
+
+            LLMObs.annotate(
+                span=llm_span,
+                input_data=messages,
+                output_data=[{"role": "assistant", "content": content}],
+                metadata={"temperature": 0.3, "latency_ms": latency_ms},
+            )
 
         sub_questions = json.loads(content)["sub_questions"]
-
         cost = (
             prompt_tokens * _COST_PER_PROMPT_TOKEN
             + completion_tokens * _COST_PER_COMPLETION_TOKEN
-        )
-
-        LLMObs.annotate(
-            span=llm_span,
-            input_data=messages,
-            output_data=[{"role": "assistant", "content": content}],
-            metadata={"temperature": 0.3, "latency_ms": latency_ms},
         )
 
         apm_span.set_tag("sub_question_count", len(sub_questions))
@@ -71,4 +78,10 @@ def plan(question: str) -> list[str]:
         record_completion_tokens(completion_tokens, step=STEP)
         record_llm_cost(cost, step=STEP)
 
-        return sub_questions
+        return PlanResult(
+            sub_questions=sub_questions,
+            latency_ms=latency_ms,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_usd=cost,
+        )

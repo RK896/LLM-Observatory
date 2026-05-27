@@ -1,5 +1,6 @@
 import os
 import time
+from dataclasses import dataclass
 
 from ddtrace.llmobs import LLMObs
 from openai import OpenAI
@@ -21,6 +22,15 @@ _SYSTEM_PROMPT = (
 )
 
 
+@dataclass(frozen=True)
+class SynthResult:
+    answer: str
+    latency_ms: float
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float
+
+
 def _format_context(results: list[SearchResult]) -> str:
     sections = []
     for i, r in enumerate(results, start=1):
@@ -28,7 +38,7 @@ def _format_context(results: list[SearchResult]) -> str:
     return "\n\n".join(sections)
 
 
-def synthesize(question: str, results: list[SearchResult]) -> str:
+def synthesize(question: str, results: list[SearchResult]) -> SynthResult:
     """Synthesize a final answer from search results."""
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     tracer = get_tracer()
@@ -52,20 +62,20 @@ def synthesize(question: str, results: list[SearchResult]) -> str:
             )
             latency_ms = (time.monotonic() - start) * 1000
 
-        content = response.choices[0].message.content
-        prompt_tokens = response.usage.prompt_tokens
-        completion_tokens = response.usage.completion_tokens
+            content = response.choices[0].message.content
+            prompt_tokens = response.usage.prompt_tokens
+            completion_tokens = response.usage.completion_tokens
+
+            LLMObs.annotate(
+                span=llm_span,
+                input_data=messages,
+                output_data=[{"role": "assistant", "content": content}],
+                metadata={"temperature": 0.5, "latency_ms": latency_ms, "source_count": len(results)},
+            )
 
         cost = (
             prompt_tokens * _COST_PER_PROMPT_TOKEN
             + completion_tokens * _COST_PER_COMPLETION_TOKEN
-        )
-
-        LLMObs.annotate(
-            span=llm_span,
-            input_data=messages,
-            output_data=[{"role": "assistant", "content": content}],
-            metadata={"temperature": 0.5, "latency_ms": latency_ms, "source_count": len(results)},
         )
 
         apm_span.set_tag("prompt_tokens", prompt_tokens)
@@ -77,4 +87,10 @@ def synthesize(question: str, results: list[SearchResult]) -> str:
         record_completion_tokens(completion_tokens, step=STEP)
         record_llm_cost(cost, step=STEP)
 
-        return content
+        return SynthResult(
+            answer=content,
+            latency_ms=latency_ms,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            cost_usd=cost,
+        )

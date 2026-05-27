@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LLM Agent Observatory</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -15,26 +16,12 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 48px 24px;
+      padding: 48px 24px 80px;
     }
 
-    header {
-      text-align: center;
-      margin-bottom: 40px;
-    }
-
-    header h1 {
-      font-size: 1.8rem;
-      font-weight: 700;
-      letter-spacing: -0.5px;
-      color: #f8fafc;
-    }
-
-    header p {
-      margin-top: 8px;
-      color: #94a3b8;
-      font-size: 0.95rem;
-    }
+    header { text-align: center; margin-bottom: 40px; }
+    header h1 { font-size: 1.8rem; font-weight: 700; letter-spacing: -0.5px; color: #f8fafc; }
+    header p { margin-top: 8px; color: #94a3b8; font-size: 0.95rem; }
 
     .card {
       background: #1e2330;
@@ -42,7 +29,8 @@
       border-radius: 12px;
       padding: 28px;
       width: 100%;
-      max-width: 720px;
+      max-width: 800px;
+      margin-bottom: 24px;
     }
 
     form { display: flex; gap: 10px; }
@@ -58,7 +46,6 @@
       outline: none;
       transition: border-color 0.15s;
     }
-
     input[type="text"]:focus { border-color: #6366f1; }
 
     button {
@@ -73,35 +60,22 @@
       transition: background 0.15s;
       white-space: nowrap;
     }
-
     button:hover { background: #4f46e5; }
     button:disabled { background: #374151; cursor: not-allowed; }
 
-    #status {
-      margin-top: 20px;
-      font-size: 0.85rem;
-      color: #64748b;
-      min-height: 20px;
-    }
-
+    #status { margin-top: 20px; font-size: 0.85rem; color: #64748b; min-height: 20px; }
     #result { display: none; margin-top: 24px; }
 
-    .label {
-      font-size: 0.75rem;
-      font-weight: 600;
+    .section-label {
+      font-size: 0.72rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.1em;
       color: #64748b;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
 
-    .sub-questions {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      margin-bottom: 20px;
-    }
-
+    .sub-questions { display: flex; flex-direction: column; gap: 6px; margin-bottom: 24px; }
     .sub-q {
       background: #111827;
       border: 1px solid #1f2937;
@@ -120,22 +94,64 @@
       line-height: 1.7;
       color: #e2e8f0;
       white-space: pre-wrap;
+      margin-bottom: 24px;
     }
 
-    .meta {
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+    .stat-card {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .stat-card .stat-value { font-size: 1.3rem; font-weight: 700; color: #a5b4fc; }
+    .stat-card .stat-label { font-size: 0.75rem; color: #64748b; margin-top: 2px; }
+
+    .flame-bar {
       display: flex;
-      gap: 12px;
-      margin-top: 16px;
+      height: 32px;
+      border-radius: 6px;
+      overflow: hidden;
+      gap: 2px;
+      margin-bottom: 10px;
     }
+    .flame-segment {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #fff;
+      min-width: 40px;
+      cursor: default;
+    }
+    .seg-planner  { background: #6366f1; }
+    .seg-search   { background: #06b6d4; }
+    .seg-synth    { background: #8b5cf6; }
 
-    .badge {
-      font-size: 0.78rem;
-      padding: 4px 10px;
-      border-radius: 20px;
-      background: #1f2937;
-      color: #6366f1;
-      border: 1px solid #374151;
+    .legend { display: flex; gap: 16px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: #94a3b8; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+
+    .token-bar-wrap {
+      display: flex;
+      height: 20px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 8px;
     }
+    .tok-prompt     { background: #f59e0b; }
+    .tok-completion { background: #10b981; }
+    .token-legend { display: flex; gap: 16px; }
+    .token-legend span { font-size: 0.8rem; color: #94a3b8; display: flex; align-items: center; gap: 6px; }
+    .tok-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    .divider { border: none; border-top: 1px solid #1f2937; margin: 20px 0; }
 
     .error-box {
       background: #1c1011;
@@ -145,6 +161,53 @@
       color: #fca5a5;
       font-size: 0.9rem;
     }
+
+    /* Dashboard */
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .dashboard-header h2 { font-size: 1rem; font-weight: 600; color: #f1f5f9; }
+    .dd-badge {
+      font-size: 0.72rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: #632ca6;
+      color: #e9d5ff;
+      font-weight: 600;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .chart-box {
+      background: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .chart-box .chart-title {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .chart-box canvas { max-height: 160px; }
+
+    .no-data {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100px;
+      color: #374151;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
@@ -153,25 +216,118 @@
     <p>Research agent with end-to-end Datadog tracing &amp; LLM Observability</p>
   </header>
 
+  <!-- Query card -->
   <div class="card">
     <form id="queryForm">
-      <input
-        type="text"
-        id="question"
-        name="question"
-        placeholder="Ask a research question..."
-        autocomplete="off"
-        required
-      />
+      <input type="text" id="question" name="question" placeholder="Ask a research question…" autocomplete="off" required />
       <button type="submit" id="submitBtn">Ask</button>
     </form>
-
     <div id="status"></div>
-
     <div id="result"></div>
   </div>
 
+  <!-- Live dashboard card -->
+  <div class="card" id="dashboardCard">
+    <div class="dashboard-header">
+      <h2>Live Performance Dashboard</h2>
+      <span class="dd-badge">Datadog Metrics</span>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-box">
+        <div class="chart-title">Latency over time (ms)</div>
+        <div id="latencyWrap"><div class="no-data">Run a query to see data</div></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Cost over time (USD)</div>
+        <div id="costWrap"><div class="no-data">Run a query to see data</div></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Prompt tokens over time</div>
+        <div id="promptWrap"><div class="no-data">Run a query to see data</div></div>
+      </div>
+      <div class="chart-box">
+        <div class="chart-title">Completion tokens over time</div>
+        <div id="completionWrap"><div class="no-data">Run a query to see data</div></div>
+      </div>
+    </div>
+  </div>
+
   <script>
+    const CHART_DEFAULTS = {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: {
+          ticks: { color: '#4b5563', maxTicksLimit: 5, font: { size: 11 } },
+          grid: { color: '#1f2937' },
+        },
+        y: {
+          ticks: { color: '#4b5563', font: { size: 11 } },
+          grid: { color: '#1f2937' },
+          beginAtZero: true,
+        },
+      },
+    };
+
+    function toLabels(points) {
+      return points.map(([ts]) => {
+        const d = new Date(ts * 1000);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      });
+    }
+
+    function toValues(points) {
+      return points.map(([, v]) => v);
+    }
+
+    function renderChart(wrapperId, points, color) {
+      const wrap = document.getElementById(wrapperId);
+      if (!points || points.length === 0) {
+        wrap.innerHTML = '<div class="no-data">No data yet — run some queries</div>';
+        return;
+      }
+      wrap.innerHTML = '<canvas></canvas>';
+      new Chart(wrap.querySelector('canvas'), {
+        type: 'line',
+        data: {
+          labels: toLabels(points),
+          datasets: [{
+            data: toValues(points),
+            borderColor: color,
+            backgroundColor: color + '22',
+            borderWidth: 2,
+            pointRadius: 3,
+            tension: 0.3,
+            fill: true,
+          }],
+        },
+        options: CHART_DEFAULTS,
+      });
+    }
+
+    async function loadDashboard() {
+      try {
+        const resp = await fetch('/metrics');
+        const data = await resp.json();
+        renderChart('latencyWrap',    data.latency,            '#6366f1');
+        renderChart('costWrap',       data.cost,               '#10b981');
+        renderChart('promptWrap',     data.tokens_prompt,      '#f59e0b');
+        renderChart('completionWrap', data.tokens_completion,  '#8b5cf6');
+      } catch (e) {
+        console.warn('Could not load dashboard metrics', e);
+      }
+    }
+
+    loadDashboard();
+
+    // Helpers
+    function fmt(ms) {
+      return ms >= 1000 ? (ms / 1000).toFixed(2) + 's' : Math.round(ms) + 'ms';
+    }
+    function pct(part, total) { return Math.max(4, Math.round((part / total) * 100)); }
+
+    // Query form
     const form = document.getElementById('queryForm');
     const statusEl = document.getElementById('status');
     const resultEl = document.getElementById('result');
@@ -184,7 +340,7 @@
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Thinking…';
-      statusEl.textContent = 'Planning sub-questions…';
+      statusEl.textContent = 'Running agent…';
       resultEl.style.display = 'none';
       resultEl.innerHTML = '';
 
@@ -198,24 +354,79 @@
         if (json.error) {
           resultEl.innerHTML = `<div class="error-box">${json.error}</div>`;
         } else {
-          const subQHtml = json.sub_questions
-            .map(q => `<div class="sub-q">${q}</div>`)
-            .join('');
+          const s = json.steps;
+          const totalMs = s.planner.latency_ms + s.search.latency_ms + s.synthesizer.latency_ms;
+          const plannerPct = pct(s.planner.latency_ms, totalMs);
+          const searchPct  = pct(s.search.latency_ms, totalMs);
+          const synthPct   = pct(s.synthesizer.latency_ms, totalMs);
+          const totalTokens = json.prompt_tokens + json.completion_tokens;
+          const promptPct   = Math.round((json.prompt_tokens / totalTokens) * 100);
+
+          const subQHtml = json.sub_questions.map(q => `<div class="sub-q">${q}</div>`).join('');
 
           resultEl.innerHTML = `
-            <div class="label">Sub-questions</div>
+            <div class="section-label">Sub-questions</div>
             <div class="sub-questions">${subQHtml}</div>
-            <div class="label">Answer</div>
+
+            <div class="section-label">Answer</div>
             <div class="answer-box">${json.answer}</div>
-            <div class="meta">
-              <span class="badge">${json.latency_ms} ms</span>
-              <span class="badge">${json.source_count} sources</span>
+
+            <hr class="divider"/>
+
+            <div class="section-label">This run</div>
+            <div class="stats-grid">
+              <div class="stat-card">
+                <div class="stat-value">${fmt(json.latency_ms)}</div>
+                <div class="stat-label">Total latency</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">$${json.cost_usd}</div>
+                <div class="stat-label">Estimated cost</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${json.prompt_tokens + json.completion_tokens}</div>
+                <div class="stat-label">Total tokens</div>
+              </div>
+              <div class="stat-card">
+                <div class="stat-value">${json.source_count}</div>
+                <div class="stat-label">Sources used</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom:20px">
+              <div class="section-label">Latency breakdown</div>
+              <div class="flame-bar">
+                <div class="flame-segment seg-planner" style="flex:${plannerPct}" title="Planner: ${fmt(s.planner.latency_ms)}">Planner</div>
+                <div class="flame-segment seg-search"  style="flex:${searchPct}"  title="Search: ${fmt(s.search.latency_ms)}">Search</div>
+                <div class="flame-segment seg-synth"   style="flex:${synthPct}"   title="Synthesizer: ${fmt(s.synthesizer.latency_ms)}">Synth</div>
+              </div>
+              <div class="legend">
+                <div class="legend-item"><div class="legend-dot" style="background:#6366f1"></div>Planner ${fmt(s.planner.latency_ms)}</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#06b6d4"></div>Search ${fmt(s.search.latency_ms)}</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div>Synthesizer ${fmt(s.synthesizer.latency_ms)}</div>
+              </div>
+            </div>
+
+            <div>
+              <div class="section-label">Token usage</div>
+              <div class="token-bar-wrap">
+                <div class="tok-prompt"     style="flex:${promptPct}"></div>
+                <div class="tok-completion" style="flex:${100 - promptPct}"></div>
+              </div>
+              <div class="token-legend">
+                <span><span class="tok-dot" style="background:#f59e0b"></span>Prompt ${json.prompt_tokens}</span>
+                <span><span class="tok-dot" style="background:#10b981"></span>Completion ${json.completion_tokens}</span>
+              </div>
             </div>
           `;
         }
 
         resultEl.style.display = 'block';
         statusEl.textContent = '';
+
+        // Refresh dashboard after a short delay so new data has time to flow
+        setTimeout(loadDashboard, 15000);
+
       } catch (err) {
         resultEl.innerHTML = `<div class="error-box">Request failed: ${err.message}</div>`;
         resultEl.style.display = 'block';

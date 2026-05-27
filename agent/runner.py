@@ -1,11 +1,19 @@
 import time
 from dataclasses import dataclass
 
-from agent.planner import plan
-from agent.searcher import SearchResult, search
-from agent.synthesizer import synthesize
+from agent.planner import PlanResult, plan
+from agent.searcher import SearchResult, SearchRun, search
+from agent.synthesizer import SynthResult, synthesize
 from observability.metrics import record_run_error, record_run_latency
 from observability.tracing import get_tracer, init_tracing
+
+
+@dataclass(frozen=True)
+class StepStats:
+    latency_ms: float
+    prompt_tokens: int
+    completion_tokens: int
+    cost_usd: float
 
 
 @dataclass(frozen=True)
@@ -15,6 +23,21 @@ class RunResult:
     search_results: list[SearchResult]
     answer: str
     latency_ms: float
+    planner: StepStats
+    search_latency_ms: float
+    synthesizer: StepStats
+
+    @property
+    def total_cost_usd(self) -> float:
+        return self.planner.cost_usd + self.synthesizer.cost_usd
+
+    @property
+    def total_prompt_tokens(self) -> int:
+        return self.planner.prompt_tokens + self.synthesizer.prompt_tokens
+
+    @property
+    def total_completion_tokens(self) -> int:
+        return self.planner.completion_tokens + self.synthesizer.completion_tokens
 
 
 def run(question: str) -> RunResult:
@@ -27,29 +50,47 @@ def run(question: str) -> RunResult:
         start = time.monotonic()
 
         try:
-            sub_questions = plan(question)
+            plan_result: PlanResult = plan(question)
 
+            search_start = time.monotonic()
             all_results: list[SearchResult] = []
-            for sub_q in sub_questions:
-                results = search(sub_q)
-                all_results.extend(results)
+            for sub_q in plan_result.sub_questions:
+                run: SearchRun = search(sub_q)
+                all_results.extend(run.results)
+            search_latency_ms = (time.monotonic() - search_start) * 1000
 
-            answer = synthesize(question, all_results)
+            synth_result: SynthResult = synthesize(question, all_results)
 
             latency_ms = (time.monotonic() - start) * 1000
+            total_cost = plan_result.cost_usd + synth_result.cost_usd
+
             root_span.set_tag("success", True)
             root_span.set_tag("latency_ms", latency_ms)
-            root_span.set_tag("sub_question_count", len(sub_questions))
+            root_span.set_tag("sub_question_count", len(plan_result.sub_questions))
             root_span.set_tag("total_sources", len(all_results))
+            root_span.set_tag("total_cost_usd", total_cost)
 
             record_run_latency(latency_ms)
 
             return RunResult(
                 question=question,
-                sub_questions=sub_questions,
+                sub_questions=plan_result.sub_questions,
                 search_results=all_results,
-                answer=answer,
+                answer=synth_result.answer,
                 latency_ms=latency_ms,
+                planner=StepStats(
+                    latency_ms=plan_result.latency_ms,
+                    prompt_tokens=plan_result.prompt_tokens,
+                    completion_tokens=plan_result.completion_tokens,
+                    cost_usd=plan_result.cost_usd,
+                ),
+                search_latency_ms=search_latency_ms,
+                synthesizer=StepStats(
+                    latency_ms=synth_result.latency_ms,
+                    prompt_tokens=synth_result.prompt_tokens,
+                    completion_tokens=synth_result.completion_tokens,
+                    cost_usd=synth_result.cost_usd,
+                ),
             )
 
         except Exception as exc:
