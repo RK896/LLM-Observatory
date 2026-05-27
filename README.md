@@ -2,6 +2,11 @@
 
 A research agent built on GPT-4o-mini and Tavily, fully instrumented with Datadog APM and LLM Observability. Ask it a question, it breaks it into sub-questions, searches the web, and synthesizes a cited answer. Every step emits traces, spans, and custom metrics.
 
+**Live demo:** https://llm-observatory.up.railway.app/
+
+## What I learned
+
+I wanted to understand how APM actually works under the hood, not just point a library at an app and call it done. So I manually created spans, tagged them with useful metadata, and used LLM Observability to capture the full prompt/response cycle with token counts. Getting DogStatsD hooked up and then pulling those metrics back through the Metrics API to render live charts in the UI was the part that clicked for me - you can see cost and latency trending in real time as you run queries.
 ## Screenshots
 
 Live performance dashboard - latency, cost, and token charts pulled from the Datadog Metrics API:
@@ -13,6 +18,12 @@ Query results - sub-questions the agent generated and a synthesized answer with 
 Run telemetry - source list, latency breakdown by step, token distribution:
 ![Telemetry](docs/telemetry.png)
 
+Datadog APM service dependencies - llm-agent-observatory calling OpenAI, Tavily, and the Datadog API:
+![Dependencies](docs/dependencies.png)
+
+Datadog APM trace list
+![APM traces](docs/apm-traces.png)
+
 ## How it works
 
 ```
@@ -22,10 +33,10 @@ User Query
 +--------------------------------------------------+
 |                  Research Agent                  |
 |                                                  |
-|  +----------+   +----------+   +-------------+  |
-|  |  Planner |-->| Searcher |-->| Synthesizer |  |
-|  |  (LLM)   |   | (Tavily) |   |    (LLM)    |  |
-|  +----------+   +----------+   +-------------+  |
+|  +----------+   +----------+   +-------------+   |
+|  |  Planner |-->| Searcher |-->| Synthesizer |   |
+|  |  (LLM)   |   | (Tavily) |   |    (LLM)    |   |
+|  +----------+   +----------+   +-------------+   |
 |       |               |               |          |
 |       +---------------+---------------+          |
 |                       |                          |
