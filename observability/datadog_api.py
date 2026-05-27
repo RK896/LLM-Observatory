@@ -16,7 +16,7 @@ def _api_url(path: str) -> str:
     return f"https://api.{site}{path}"
 
 
-def query_metric(query: str, hours: int = 6) -> list[tuple[float, float]]:
+def query_metric(query: str, hours: int = 48) -> list[tuple[float, float]]:
     """Return (unix_timestamp, value) pairs for a Datadog metric query."""
     now = int(time.time())
     start = now - hours * 3600
