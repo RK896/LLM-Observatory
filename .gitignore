@@ -7,3 +7,4 @@ htmlcov/
 .DS_Store
 *.egg-info/
 dist/
+plan.md
