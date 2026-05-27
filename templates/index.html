@@ -485,6 +485,41 @@
       text-transform: uppercase;
     }
 
+    .sources-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 4px; }
+    .source-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--bg-1);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      text-decoration: none;
+      transition: border-color 0.15s;
+    }
+    .source-item:hover { border-color: var(--border-2); }
+    .source-idx {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--amber);
+      flex-shrink: 0;
+    }
+    .source-title {
+      font-size: 0.85rem;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .source-item:hover .source-title { color: var(--bright); }
+    .source-domain {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
     .error-box {
       background: rgba(255,79,107,0.08);
       border: 1px solid rgba(255,79,107,0.3);
@@ -772,6 +807,19 @@
             <div class="answer-block">${json.answer}</div>
 
             <div class="section-hd" style="margin-bottom:14px">
+              <span class="section-hd-label">Sources</span>
+              <div class="section-hd-line"></div>
+            </div>
+            <div class="sources-list">
+              ${json.sources.map(s => `
+                <a class="source-item" href="${s.url}" target="_blank" rel="noopener">
+                  <span class="source-idx">[${s.index}]</span>
+                  <span class="source-title">${s.title || s.url}</span>
+                  <span class="source-domain">${new URL(s.url).hostname}</span>
+                </a>`).join('')}
+            </div>
+
+            <div class="section-hd" style="margin-bottom:14px; margin-top:24px">
               <span class="section-hd-label">Run telemetry</span>
               <div class="section-hd-line"></div>
             </div>

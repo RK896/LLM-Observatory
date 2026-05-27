@@ -68,6 +68,10 @@ async def query(request: Request, question: str = Form(...)):
             "answer": result.answer,
             "sub_questions": result.sub_questions,
             "source_count": len(result.search_results),
+            "sources": [
+                {"index": i + 1, "title": r.title, "url": r.url}
+                for i, r in enumerate(result.search_results)
+            ],
             "latency_ms": round(result.latency_ms, 1),
             "cost_usd": round(result.total_cost_usd, 6),
             "prompt_tokens": result.total_prompt_tokens,

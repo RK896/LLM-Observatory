@@ -11,10 +11,14 @@ def init_tracing() -> None:
     if _initialized:
         return
 
-    LLMObs.enable(
-        ml_app=os.getenv("DD_SERVICE", "llm-agent-observatory"),
-        integrations_enabled=False,  # we instrument manually for full control
-    )
+    try:
+        LLMObs.enable(
+            ml_app=os.getenv("DD_SERVICE", "llm-agent-observatory"),
+            integrations_enabled=False,
+        )
+    except Exception:
+        pass  # no Datadog Agent available (e.g. Railway) — app still works
+
     _initialized = True
 
 
