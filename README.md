@@ -2,8 +2,6 @@
 
 A research agent built on GPT-4o-mini and Tavily, fully instrumented with Datadog APM and LLM Observability. Ask it a question, it breaks it into sub-questions, searches the web, and synthesizes a cited answer. Every step emits traces, spans, and custom metrics.
 
-**Live demo:** https://llm-observatory.up.railway.app/
-
 ## What I learned
 
 I wanted to understand how APM actually works under the hood, not just point a library at an app and call it done. So I manually created spans, tagged them with useful metadata, and used LLM Observability to capture the full prompt/response cycle with token counts. Getting DogStatsD hooked up and then pulling those metrics back through the Metrics API to render live charts in the UI was the part that clicked for me - you can see cost and latency trending in real time as you run queries.
