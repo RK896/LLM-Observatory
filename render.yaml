@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: llm-agent-observatory
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    # No Datadog Agent on Render, so skip ddtrace-run (same as railway.json).
+    # Shell wrapper so $PORT expands — Render injects it at runtime.
+    dockerCommand: /bin/sh -c "uvicorn api.app:app --host 0.0.0.0 --port $PORT"
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: DD_API_KEY
+        sync: false
+      - key: DD_APP_KEY
+        sync: false
+      - key: DD_SITE
+        sync: false
+      - key: DD_SERVICE
+        value: llm-agent-observatory
+      - key: DD_ENV
+        value: render
+      - key: DD_VERSION
+        value: 1.0.0
+      - key: RATE_LIMIT_PER_HOUR
+        value: "10"
