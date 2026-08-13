@@ -22,10 +22,11 @@ def test_search_returns_results(mock_tavily, mock_tracer, mock_metric):
     mock_tracer.return_value.trace.return_value.__enter__ = MagicMock(return_value=mock_span)
     mock_tracer.return_value.trace.return_value.__exit__ = MagicMock(return_value=False)
 
-    results = search("What causes inflation?")
+    run = search("What causes inflation?")
 
-    assert len(results) == 3
-    assert all(isinstance(r, SearchResult) for r in results)
+    assert len(run.results) == 3
+    assert all(isinstance(r, SearchResult) for r in run.results)
+    assert run.latency_ms >= 0
 
 
 @patch("agent.searcher.record_search_result_count")
@@ -38,11 +39,11 @@ def test_search_maps_fields(mock_tavily, mock_tracer, mock_metric):
     mock_tracer.return_value.trace.return_value.__enter__ = MagicMock(return_value=mock_span)
     mock_tracer.return_value.trace.return_value.__exit__ = MagicMock(return_value=False)
 
-    results = search("test query")
+    run = search("test query")
 
-    assert results[0].title == "Title 0"
-    assert results[0].url == "https://example.com/0"
-    assert results[0].content == "Content 0"
+    assert run.results[0].title == "Title 0"
+    assert run.results[0].url == "https://example.com/0"
+    assert run.results[0].content == "Content 0"
 
 
 @patch("agent.searcher.record_search_result_count")
@@ -70,7 +71,7 @@ def test_search_handles_empty_results(mock_tavily, mock_tracer, mock_metric):
     mock_tracer.return_value.trace.return_value.__enter__ = MagicMock(return_value=mock_span)
     mock_tracer.return_value.trace.return_value.__exit__ = MagicMock(return_value=False)
 
-    results = search("obscure query")
+    run = search("obscure query")
 
-    assert results == []
+    assert run.results == []
     mock_metric.assert_called_once_with(0)

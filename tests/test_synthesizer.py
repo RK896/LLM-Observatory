@@ -53,7 +53,10 @@ def test_synthesize_returns_answer(mock_openai, mock_tracer, mock_llmobs, *metri
 
     result = synthesize("What is inflation?", _make_results())
 
-    assert result == expected
+    assert result.answer == expected
+    assert result.prompt_tokens == 200
+    assert result.completion_tokens == 80
+    assert result.cost_usd > 0
 
 
 @patch("agent.synthesizer.record_llm_cost")

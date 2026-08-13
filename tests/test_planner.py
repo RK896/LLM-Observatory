@@ -35,7 +35,10 @@ def test_plan_returns_sub_questions(mock_openai, mock_tracer, mock_llmobs, *metr
 
     result = plan("What is inflation and how is it controlled?")
 
-    assert result == expected
+    assert result.sub_questions == expected
+    assert result.prompt_tokens == 50
+    assert result.completion_tokens == 30
+    assert result.cost_usd > 0
 
 
 @patch("agent.planner.record_llm_cost")
