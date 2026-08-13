@@ -5,8 +5,8 @@ services:
     plan: free
     healthCheckPath: /
     # No Datadog Agent on Render, so skip ddtrace-run (same as railway.json).
-    # Shell wrapper so $PORT expands — Render injects it at runtime.
-    dockerCommand: /bin/sh -c "uvicorn api.app:app --host 0.0.0.0 --port $PORT"
+    # Render runs this via sh, so $PORT expands without an explicit wrapper.
+    dockerCommand: uvicorn api.app:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: OPENAI_API_KEY
         sync: false
