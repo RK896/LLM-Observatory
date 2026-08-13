@@ -43,13 +43,19 @@ def query_metric(query: str, hours: int = 48) -> list[tuple[float, float]]:
     ]
 
 
+DASHBOARD_WINDOW_HOURS = 24 * 7
+_ROLLUP_SECONDS = 3600  # hourly buckets keep a 7-day window under Datadog's point limit
+
+
 def fetch_dashboard_metrics() -> dict:
     """Fetch all metrics needed for the dashboard charts."""
+    hours = DASHBOARD_WINDOW_HOURS
+    rollup = _ROLLUP_SECONDS
     return {
-        "latency": query_metric("avg:agent.run.latency_ms{*}"),
-        "cost": query_metric("sum:agent.llm.cost_usd{*}.rollup(sum, 300)"),
-        "tokens_prompt": query_metric("sum:agent.llm.tokens.prompt{*}.rollup(sum, 300)"),
-        "tokens_completion": query_metric("sum:agent.llm.tokens.completion{*}.rollup(sum, 300)"),
-        "co2": query_metric("sum:agent.env.co2_g{*}.rollup(sum, 300)"),
-        "energy": query_metric("sum:agent.env.energy_wh{*}.rollup(sum, 300)"),
+        "latency": query_metric("avg:agent.run.latency_ms{*}", hours=hours),
+        "cost": query_metric(f"sum:agent.llm.cost_usd{{*}}.rollup(sum, {rollup})", hours=hours),
+        "tokens_prompt": query_metric(f"sum:agent.llm.tokens.prompt{{*}}.rollup(sum, {rollup})", hours=hours),
+        "tokens_completion": query_metric(f"sum:agent.llm.tokens.completion{{*}}.rollup(sum, {rollup})", hours=hours),
+        "co2": query_metric(f"sum:agent.env.co2_g{{*}}.rollup(sum, {rollup})", hours=hours),
+        "energy": query_metric(f"sum:agent.env.energy_wh{{*}}.rollup(sum, {rollup})", hours=hours),
     }

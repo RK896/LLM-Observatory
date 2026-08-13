@@ -606,7 +606,7 @@
     <div class="dash-header">
       <span class="dash-title">Performance Dashboard</span>
       <div class="dash-meta">
-        <span class="dash-window">Last 6h</span>
+        <span class="dash-window">Last 7d</span>
         <button class="dash-refresh" id="refreshBtn" onclick="loadDashboard()">↻ refresh</button>
       </div>
     </div>
@@ -622,35 +622,35 @@
       <div class="chart-cell">
         <div class="chart-cell-hd">
           <span class="chart-cell-title">LLM cost</span>
-          <span class="chart-cell-unit">USD / 5 min</span>
+          <span class="chart-cell-unit">USD / 1h</span>
         </div>
         <div id="costWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
       <div class="chart-cell">
         <div class="chart-cell-hd">
           <span class="chart-cell-title">Prompt tokens</span>
-          <span class="chart-cell-unit">count / 5 min</span>
+          <span class="chart-cell-unit">count / 1h</span>
         </div>
         <div id="promptWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
       <div class="chart-cell">
         <div class="chart-cell-hd">
           <span class="chart-cell-title">Completion tokens</span>
-          <span class="chart-cell-unit">count / 5 min</span>
+          <span class="chart-cell-unit">count / 1h</span>
         </div>
         <div id="completionWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
       <div class="chart-cell">
         <div class="chart-cell-hd">
           <span class="chart-cell-title">CO₂e (est.)</span>
-          <span class="chart-cell-unit">g / 5 min</span>
+          <span class="chart-cell-unit">g / 1h</span>
         </div>
         <div id="co2Wrap"><div class="no-data">— awaiting data —</div></div>
       </div>
       <div class="chart-cell">
         <div class="chart-cell-hd">
           <span class="chart-cell-title">Energy (est.)</span>
-          <span class="chart-cell-unit">Wh / 5 min</span>
+          <span class="chart-cell-unit">Wh / 1h</span>
         </div>
         <div id="energyWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
@@ -705,7 +705,9 @@
       wrap.innerHTML = '<canvas></canvas>';
       const labels = points.map(([ts]) => {
         const d = new Date(ts * 1000);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const day = d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        return `${day} ${time}`;
       });
       const values = points.map(([, v]) => v);
       new Chart(wrap.querySelector('canvas'), {
