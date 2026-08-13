@@ -44,7 +44,13 @@ def query_metric(query: str, hours: int = 48) -> list[tuple[float, float]]:
 
 
 DASHBOARD_WINDOW_HOURS = 24 * 7
-_ROLLUP_SECONDS = 3600  # hourly buckets keep a 7-day window under Datadog's point limit
+_ROLLUP_SECONDS = 600  # fine buckets so each query (or close burst) becomes its own point
+_MAX_CHART_POINTS = 20  # charts show the most recent N active buckets, not a fixed timeline
+
+
+def _recent(points: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """Keep only the most recent active buckets — empty ones are already filtered out."""
+    return points[-_MAX_CHART_POINTS:]
 
 
 def fetch_dashboard_metrics() -> dict:
@@ -52,10 +58,10 @@ def fetch_dashboard_metrics() -> dict:
     hours = DASHBOARD_WINDOW_HOURS
     rollup = _ROLLUP_SECONDS
     return {
-        "latency": query_metric("avg:agent.run.latency_ms{*}", hours=hours),
-        "cost": query_metric(f"sum:agent.llm.cost_usd{{*}}.rollup(sum, {rollup})", hours=hours),
-        "tokens_prompt": query_metric(f"sum:agent.llm.tokens.prompt{{*}}.rollup(sum, {rollup})", hours=hours),
-        "tokens_completion": query_metric(f"sum:agent.llm.tokens.completion{{*}}.rollup(sum, {rollup})", hours=hours),
-        "co2": query_metric(f"sum:agent.env.co2_g{{*}}.rollup(sum, {rollup})", hours=hours),
-        "energy": query_metric(f"sum:agent.env.energy_wh{{*}}.rollup(sum, {rollup})", hours=hours),
+        "latency": _recent(query_metric(f"avg:agent.run.latency_ms{{*}}.rollup(avg, {rollup})", hours=hours)),
+        "cost": _recent(query_metric(f"sum:agent.llm.cost_usd{{*}}.rollup(sum, {rollup})", hours=hours)),
+        "tokens_prompt": _recent(query_metric(f"sum:agent.llm.tokens.prompt{{*}}.rollup(sum, {rollup})", hours=hours)),
+        "tokens_completion": _recent(query_metric(f"sum:agent.llm.tokens.completion{{*}}.rollup(sum, {rollup})", hours=hours)),
+        "co2": _recent(query_metric(f"sum:agent.env.co2_g{{*}}.rollup(sum, {rollup})", hours=hours)),
+        "energy": _recent(query_metric(f"sum:agent.env.energy_wh{{*}}.rollup(sum, {rollup})", hours=hours)),
     }
