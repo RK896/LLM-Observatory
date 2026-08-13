@@ -50,4 +50,6 @@ def fetch_dashboard_metrics() -> dict:
         "cost": query_metric("sum:agent.llm.cost_usd{*}.rollup(sum, 300)"),
         "tokens_prompt": query_metric("sum:agent.llm.tokens.prompt{*}.rollup(sum, 300)"),
         "tokens_completion": query_metric("sum:agent.llm.tokens.completion{*}.rollup(sum, 300)"),
+        "co2": query_metric("sum:agent.env.co2_g{*}.rollup(sum, 300)"),
+        "energy": query_metric("sum:agent.env.energy_wh{*}.rollup(sum, 300)"),
     }

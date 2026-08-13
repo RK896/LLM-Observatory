@@ -381,6 +381,23 @@
     .tok-leg strong { color: var(--text); font-weight: 500; }
     .tok-swatch { width: 8px; height: 8px; border-radius: 1px; flex-shrink: 0; }
 
+    /* ── ENVIRONMENTAL FOOTPRINT ── */
+    .env-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .env-row .metric-cell::before { background: var(--green); }
+    .env-note {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      letter-spacing: 0.04em;
+      line-height: 1.6;
+    }
+    .env-note strong { color: var(--green); font-weight: 500; }
+
     /* ── DIVIDER ── */
     .rule {
       border: none;
@@ -623,6 +640,20 @@
         </div>
         <div id="completionWrap"><div class="no-data">— awaiting data —</div></div>
       </div>
+      <div class="chart-cell">
+        <div class="chart-cell-hd">
+          <span class="chart-cell-title">CO₂e (est.)</span>
+          <span class="chart-cell-unit">g / 5 min</span>
+        </div>
+        <div id="co2Wrap"><div class="no-data">— awaiting data —</div></div>
+      </div>
+      <div class="chart-cell">
+        <div class="chart-cell-hd">
+          <span class="chart-cell-title">Energy (est.)</span>
+          <span class="chart-cell-unit">Wh / 5 min</span>
+        </div>
+        <div id="energyWrap"><div class="no-data">— awaiting data —</div></div>
+      </div>
     </div>
 
   </main>
@@ -705,6 +736,8 @@
         renderChart('costWrap',       data.cost,              '#22d68f');
         renderChart('promptWrap',     data.tokens_prompt,     '#7c6af5');
         renderChart('completionWrap', data.tokens_completion, '#0dd3b0');
+        renderChart('co2Wrap',        data.co2,               '#84cc16');
+        renderChart('energyWrap',     data.energy,            '#38bdf8');
       } catch (e) {
         console.warn('Dashboard load failed', e);
       }
@@ -718,6 +751,17 @@
       return Math.round(ms) + 'ms';
     }
     function pct(part, total) { return Math.max(5, Math.round((part / total) * 100)); }
+    function fmtEnergy(wh) {
+      if (wh < 1) return (wh * 1000).toFixed(1) + '<span class="unit">mWh</span>';
+      return wh.toFixed(2) + '<span class="unit">Wh</span>';
+    }
+    function fmtMass(g) {
+      if (g < 1) return (g * 1000).toFixed(1) + '<span class="unit">mg</span>';
+      return g.toFixed(2) + '<span class="unit">g</span>';
+    }
+    function fmtWater(ml) {
+      return ml.toFixed(2) + '<span class="unit">mL</span>';
+    }
 
     const dot      = document.getElementById('statusDot');
     const statusTxt = document.getElementById('statusText');
@@ -891,6 +935,31 @@
                 </div>
               </div>
             </div>
+
+            <hr class="rule" />
+
+            <div class="section-hd" style="margin-bottom:14px">
+              <span class="section-hd-label">Environmental footprint (est.)</span>
+              <div class="section-hd-line"></div>
+            </div>
+            <div class="env-row">
+              <div class="metric-cell">
+                <div class="metric-val">${fmtEnergy(json.environment.energy_wh)}</div>
+                <div class="metric-lbl">energy</div>
+              </div>
+              <div class="metric-cell">
+                <div class="metric-val">${fmtMass(json.environment.co2_g)}</div>
+                <div class="metric-lbl">co₂e</div>
+              </div>
+              <div class="metric-cell">
+                <div class="metric-val">${fmtWater(json.environment.water_ml)}</div>
+                <div class="metric-lbl">water</div>
+              </div>
+            </div>
+            <p class="env-note">
+              ≈ powering a 10 W LED bulb for <strong>${json.environment.led_bulb_seconds}s</strong>
+              · rough estimate from token counts, per-token energy research, US grid carbon intensity
+            </p>
 
             <div style="height:32px"></div>
           `;

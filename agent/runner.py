@@ -1,10 +1,11 @@
 import time
 from dataclasses import dataclass
 
+from agent.environment import EnvironmentalImpact, estimate_impact
 from agent.planner import PlanResult, plan
 from agent.searcher import SearchResult, SearchRun, search
 from agent.synthesizer import SynthResult, synthesize
-from observability.metrics import record_run_error, record_run_latency
+from observability.metrics import record_environmental_impact, record_run_error, record_run_latency
 from observability.tracing import get_tracer, init_tracing
 
 
@@ -26,6 +27,7 @@ class RunResult:
     planner: StepStats
     search_latency_ms: float
     synthesizer: StepStats
+    environment: EnvironmentalImpact
 
     @property
     def total_cost_usd(self) -> float:
@@ -63,14 +65,22 @@ def run(question: str) -> RunResult:
 
             latency_ms = (time.monotonic() - start) * 1000
             total_cost = plan_result.cost_usd + synth_result.cost_usd
+            impact = estimate_impact(
+                prompt_tokens=plan_result.prompt_tokens + synth_result.prompt_tokens,
+                completion_tokens=plan_result.completion_tokens + synth_result.completion_tokens,
+            )
 
             root_span.set_tag("success", True)
             root_span.set_tag("latency_ms", latency_ms)
             root_span.set_tag("sub_question_count", len(plan_result.sub_questions))
             root_span.set_tag("total_sources", len(all_results))
             root_span.set_tag("total_cost_usd", total_cost)
+            root_span.set_tag("energy_wh", impact.energy_wh)
+            root_span.set_tag("co2_g", impact.co2_grams)
+            root_span.set_tag("water_ml", impact.water_ml)
 
             record_run_latency(latency_ms)
+            record_environmental_impact(impact.energy_wh, impact.co2_grams, impact.water_ml)
 
             return RunResult(
                 question=question,
@@ -91,6 +101,7 @@ def run(question: str) -> RunResult:
                     completion_tokens=synth_result.completion_tokens,
                     cost_usd=synth_result.cost_usd,
                 ),
+                environment=impact,
             )
 
         except Exception as exc:

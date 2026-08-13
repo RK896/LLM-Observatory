@@ -76,6 +76,12 @@ async def query(request: Request, question: str = Form(...)):
             "cost_usd": round(result.total_cost_usd, 6),
             "prompt_tokens": result.total_prompt_tokens,
             "completion_tokens": result.total_completion_tokens,
+            "environment": {
+                "energy_wh": round(result.environment.energy_wh, 5),
+                "co2_g": round(result.environment.co2_grams, 5),
+                "water_ml": round(result.environment.water_ml, 5),
+                "led_bulb_seconds": round(result.environment.led_bulb_seconds, 1),
+            },
             "steps": {
                 "planner": {
                     "latency_ms": round(result.planner.latency_ms, 1),

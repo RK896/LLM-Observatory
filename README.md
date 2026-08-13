@@ -5,6 +5,7 @@ A research agent built on GPT-4o-mini and Tavily, fully instrumented with Datado
 ## What I learned
 
 I wanted to understand how APM actually works under the hood, not just point a library at an app and call it done. So I manually created spans, tagged them with useful metadata, and used LLM Observability to capture the full prompt/response cycle with token counts. Getting DogStatsD hooked up and then pulling those metrics back through the Metrics API to render live charts in the UI was the part that clicked for me - you can see cost and latency trending in real time as you run queries.
+
 ## Screenshots
 
 Live performance dashboard - latency, cost, and token charts pulled from the Datadog Metrics API:
@@ -71,7 +72,7 @@ Each step is a traced span. The full run is one root trace in Datadog APM.
 
 | Span | Tags |
 |------|------|
-| `research_agent.run` | `query`, `success`, `latency_ms` |
+| `research_agent.run` | `query`, `success`, `latency_ms`, `energy_wh`, `co2_g` |
 | `agent.plan` | `sub_question_count`, `prompt_tokens` |
 | `agent.search` | `query`, `result_count`, `latency_ms` |
 | `agent.synthesize` | `completion_tokens`, `cost_usd` |
@@ -90,6 +91,9 @@ Every LLM call is captured with full input/output messages, token counts, model 
 | `agent.llm.tokens.completion` | Count | Completion tokens per call |
 | `agent.search.result_count` | Gauge | Tavily results per search |
 | `agent.run.error` | Count | Failed runs, tagged by error type |
+| `agent.env.energy_wh` | Gauge | Estimated energy per run (Wh) |
+| `agent.env.co2_g` | Gauge | Estimated CO2e per run (grams) |
+| `agent.env.water_ml` | Gauge | Estimated water use per run (mL) |
 
 ## Project structure
 
@@ -99,6 +103,7 @@ llm-agent-observatory/
 │   ├── planner.py          # LLM call: question -> sub-questions
 │   ├── searcher.py         # Tavily: sub-question -> search results
 │   ├── synthesizer.py      # LLM call: results -> final answer
+│   ├── environment.py      # Environmental footprint estimator (energy/CO2/water)
 │   └── runner.py           # Orchestrates steps, owns root trace
 ├── observability/
 │   ├── tracing.py          # ddtrace setup and span helpers
@@ -173,3 +178,15 @@ pytest tests/ --cov=agent --cov=observability --cov-report=term-missing
 ## Cost
 
 At GPT-4o-mini pricing ($0.15/1M input, $0.60/1M output tokens), a typical query costs around $0.001-$0.004.
+
+## Environmental footprint (estimated)
+
+Each query also reports an estimated environmental cost — energy (Wh), carbon (gCO2e), and water (mL) — shown in the run telemetry and emitted as `agent.env.*` metrics.
+
+These are order-of-magnitude estimates, not measurements — OpenAI doesn't publish per-request energy figures. The methodology (constants in `agent/environment.py`):
+
+- **Energy**: linearized from [Epoch AI's estimate](https://epoch.ai/gradient-updates/how-much-energy-does-chatgpt-use) of ~0.3 Wh for a typical GPT-4o query (~500 output tokens), scaled down ~10x for GPT-4o-mini's smaller size. Prompt (prefill) tokens are weighted at 10% of completion (decode) tokens, and a 1.2x datacenter PUE overhead is applied.
+- **Carbon**: ~0.4 gCO2e/Wh, near the US grid average carbon intensity.
+- **Water**: ~1.8 mL/Wh for on-site cooling plus off-site generation, per [Ren et al., "Making AI Less Thirsty"](https://arxiv.org/abs/2304.03271).
+
+A typical query lands around 30-70 mWh — roughly 10-25 seconds of a 10 W LED bulb.

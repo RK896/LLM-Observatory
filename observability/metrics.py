@@ -29,6 +29,12 @@ def record_completion_tokens(count: int, *, step: str) -> None:
     _statsd.increment("llm.tokens.completion", count, tags=[f"step:{step}"])
 
 
+def record_environmental_impact(energy_wh: float, co2_grams: float, water_ml: float) -> None:
+    _statsd.gauge("env.energy_wh", energy_wh)
+    _statsd.gauge("env.co2_g", co2_grams)
+    _statsd.gauge("env.water_ml", water_ml)
+
+
 def record_search_result_count(count: int) -> None:
     _statsd.gauge("search.result_count", count)
 
